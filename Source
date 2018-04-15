@@ -1,0 +1,59 @@
+long day = 86400;
+long hour = 3600; 
+long minute = 60; 
+long second =  1; 
+
+int luxsensor = A0;
+
+int luxValue;
+time_t sunlightStart = 0;
+time_t sunlightEnd = 0;
+time_t deltaTime;
+
+String formatTime(long elapsedSeconds)
+{
+    int days = elapsedSeconds / day;
+    int hours = (elapsedSeconds % day) / hour;
+    int minutes = ((elapsedSeconds % day) %hour) / minute;
+    int seconds = (((elapsedSeconds % day) % hour) % minute) / second;
+    String result;
+    result = result.format("%i days, %i hours, %i minutes and %i seconds", days, hours, minutes, seconds);
+    return result;
+}
+
+String publishedTime;
+
+void setup() 
+{
+    pinMode(luxsensor, INPUT);
+
+    Particle.variable("light", luxValue);
+    Particle.variable("Start", sunlightStart);
+    Particle.variable("tEnd", sunlightEnd);
+}
+
+void loop() 
+{
+    luxValue = analogRead(luxsensor);
+    if (luxValue >= 2500)
+    {
+        if(sunlightEnd >= sunlightStart) //sunlightEnd is more recent - i.e. nighttime transitioning to day
+        {
+            sunlightStart = Time.now();
+            deltaTime = abs(sunlightStart - sunlightEnd); //Calculate time period
+            publishedTime = formatTime(deltaTime);
+            Particle.publish("light", publishedTime);
+        }
+    }
+    if (luxValue < 2500)
+    {
+        if(sunlightStart >= sunlightEnd) //sunlightStart is more recent - i.e. from day to night
+        {
+            sunlightEnd = Time.now();
+            deltaTime = abs(sunlightEnd - sunlightStart); //Calculate time period
+            publishedTime = formatTime(deltaTime);
+            Particle.publish("dark", publishedTime);
+        }
+    }
+    delay(5000);
+}
